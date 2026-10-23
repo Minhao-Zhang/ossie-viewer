@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { Detail } from "./Detail";
 import { openText, type OpenedDocument } from "./document";
 import { fetchText } from "./fetchText";
 import { GraphView } from "./GraphView";
+import { ModelIndex, ModelSummary } from "./Overview";
+import type { Selection } from "./selection";
 
 export function App() {
   const [source, setSource] = useState<string | null>(null);
@@ -11,13 +14,13 @@ export function App() {
   );
   const [opened, setOpened] = useState<OpenedDocument | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selection, setSelection] = useState<Selection | null>(null);
   const request = useRef(0);
 
   const show = useCallback((text: string, label: string) => {
     request.current += 1;
     setSource(label);
-    setSelected(null);
+    setSelection(null);
     setLoadError(null);
     setOpened(openText(text));
   }, []);
@@ -29,7 +32,7 @@ export function App() {
       } catch {
         request.current += 1;
         setSource(file.name);
-        setSelected(null);
+        setSelection(null);
         setOpened(null);
         setLoadError(`Could not read ${file.name}.`);
       }
@@ -40,7 +43,7 @@ export function App() {
   const loadUrl = useCallback(async (next: string) => {
     const id = ++request.current;
     setSource(next);
-    setSelected(null);
+    setSelection(null);
     setLoadError(null);
     setOpened(null);
     const result = await fetchText(next);
@@ -61,7 +64,7 @@ export function App() {
     void fetchText(fromPage).then((result) => {
       if (cancelled || id !== request.current) return;
       setSource(fromPage);
-      setSelected(null);
+      setSelection(null);
       if ("error" in result) {
         setOpened(null);
         setLoadError(result.error);
@@ -95,9 +98,8 @@ export function App() {
     };
   }, [openFile]);
 
-  const graph = opened?.graph;
-  const datasetCount = graph?.nodes.length ?? 0;
-  const relationshipCount = graph?.edges.length ?? 0;
+  const ready = opened !== null && opened.parseError === null ? opened : null;
+  const showOverview = ready !== null && selection === null;
 
   return (
     <main>
@@ -156,16 +158,22 @@ export function App() {
             ))}
           </ul>
         ) : null}
-        {opened && !opened.parseError ? (
-          <p className="muted">
-            {datasetCount === 0
-              ? "No datasets to draw."
-              : `${datasetCount} ${datasetCount === 1 ? "dataset" : "datasets"}, ${relationshipCount} ${relationshipCount === 1 ? "relationship" : "relationships"}.`}
-          </p>
+        {showOverview && ready ? <ModelSummary model={ready.model} /> : null}
+        {ready && selection ? (
+          <Detail model={ready.model} selection={selection} onSelect={setSelection} onBack={() => setSelection(null)} />
         ) : null}
       </div>
-      {opened && datasetCount > 0 ? (
-        <GraphView graph={opened.graph} selected={selected} onSelect={setSelected} />
+      {showOverview && ready && ready.graph.nodes.length > 0 ? (
+        <GraphView
+          graph={ready.graph}
+          selected={null}
+          onSelect={(name) => setSelection({ kind: "dataset", name })}
+        />
+      ) : null}
+      {showOverview && ready ? (
+        <div className="page">
+          <ModelIndex model={ready.model} onSelect={setSelection} />
+        </div>
       ) : null}
     </main>
   );

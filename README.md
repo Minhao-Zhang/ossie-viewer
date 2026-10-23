@@ -2,7 +2,7 @@
 
 Ossie viewer opens an [Apache Ossie](https://github.com/apache/ossie) semantic model in the browser and shows it whole: its datasets and the relationships between them, each dataset's fields, the metrics and what they reference, the AI context at every level, and any vendor extensions. It has no backend. The file never leaves your machine.
 
-Open a YAML or JSON file from the file picker, from a URL (the field on the page, or `?file=<url>`), or by dropping it on the page. The viewer checks the document against the Ossie schema for its `version` (`0.2.0.dev0` or `0.1.1`; see `src/schemas/README.md`) and draws each dataset, with a relationship as an edge from the many side to the one side. Fields and metrics come next.
+Open a YAML or JSON file from the file picker, from a URL (the field on the page, or `?file=<url>`), or by dropping it on the page. The viewer checks the document against the Ossie schema for its `version` (`0.2.0.dev0` or `0.1.1`; see `src/schemas/README.md`) and draws each dataset, with a relationship as an edge from the many side to the one side. From the graph or the lists, open a dataset or a metric. A metric lists the fields it names, and each one opens that dataset.
 
 ## Run it
 

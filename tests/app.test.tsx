@@ -27,11 +27,14 @@ describe("App", () => {
     expect(screen.getByText("No validation errors.")).toBeTruthy();
     expect(screen.queryByRole("list", { name: "Validation errors" })).toBeNull();
     expect(screen.getByText("model.yaml")).toBeTruthy();
-    const orders = screen.getByText("orders").closest(".react-flow__node");
+    const orders = [...document.querySelectorAll(".react-flow__node")].find((node) =>
+      node.textContent?.includes("orders"),
+    );
     expect(orders?.getAttribute("style")).toContain("visible");
     expect(document.querySelectorAll(".react-flow__edge").length).toBe(1);
-    fireEvent.click(screen.getByText("orders"));
-    expect(screen.getByText("orders").closest(".react-flow__node")?.className).toContain("is-selected");
+    fireEvent.click(orders!);
+    expect(await screen.findByRole("heading", { name: "orders" })).toBeTruthy();
+    expect(screen.getByText("db.orders")).toBeTruthy();
   });
 
   it("names the failing path for an invalid file", async () => {

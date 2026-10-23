@@ -8,7 +8,7 @@ import { layoutGraph } from "./layout";
 type Props = {
   graph: DatasetGraph;
   selected: string | null;
-  onSelect: (datasetId: string) => void;
+  onSelect: (datasetName: string) => void;
 };
 
 export function GraphView({ graph, selected, onSelect }: Props) {
@@ -24,7 +24,10 @@ export function GraphView({ graph, selected, onSelect }: Props) {
         nodes={nodes}
         edges={laidOut.edges}
         colorMode="light"
-        onNodeClick={(_event, node) => onSelect(node.id)}
+        onNodeClick={(_event, node) => {
+          const label = node.data?.label;
+          onSelect(typeof label === "string" ? label : node.id);
+        }}
         fitView
         nodesDraggable={false}
         nodesConnectable={false}
