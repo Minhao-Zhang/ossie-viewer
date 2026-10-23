@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+
+      # `npm ci` fails when the lockfile disagrees, instead of rewriting it.
+      - name: Install (frozen)
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Types
+        run: npx tsc --noEmit
+
+      - name: Tests
+        run: npm test
+
+      # One self-contained index.html that opens from disk.
+      - name: Build
+        run: npm run build
+
+      - name: The build loads no other file
+        run: "! grep -qE '<script[^>]*src=|<link[^>]*rel=\"stylesheet\"' dist/index.html"
