@@ -13,6 +13,12 @@ export function MetricView({ metric, onSelect }: Props) {
   return (
     <article>
       <h2>{metric.name}</h2>
+      {metric.dataset ? (
+        <p className="muted">
+          Scoped to the dataset{" "}
+          <LinkButton onClick={() => onSelect({ kind: "dataset", name: metric.dataset! })}>{metric.dataset}</LinkButton>
+        </p>
+      ) : null}
       {metric.description ? <p>{metric.description}</p> : null}
       <h3>Expression</h3>
       {metric.expressions.length === 0 ? <p className="muted">None.</p> : null}

@@ -46,7 +46,7 @@ function nonJson(model: SemanticModel): string[] {
 function renders(model: SemanticModel) {
   for (const dataset of model.datasets) {
     const view = render(
-      <DatasetView dataset={dataset} relationships={model.relationships} highlight={null} onSelect={() => {}} />,
+      <DatasetView dataset={dataset} relationships={model.relationships} metrics={model.metrics} highlight={null} onSelect={() => {}} />,
     );
     expect(screen.getByRole("heading", { name: dataset.name })).toBeTruthy();
     view.unmount();

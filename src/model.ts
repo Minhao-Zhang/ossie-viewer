@@ -37,7 +37,10 @@ export type Relationship = {
 export type FieldRef = { dataset: string; field: string };
 
 export type Metric = {
+  /** `dataset.metric` for a dataset-scoped metric, so it cannot clash with a model metric. */
   name: string;
+  /** The dataset a dataset-scoped metric belongs to; `null` for a model metric. */
+  dataset: string | null;
   description: string | null;
   expressions: DialectExpression[];
   aiContext: unknown;
@@ -193,12 +196,13 @@ function readRelationship(value: unknown): Relationship | null {
   };
 }
 
-function readMetric(value: unknown): Omit<Metric, "references"> | null {
+function readMetric(value: unknown, dataset: string | null = null): Omit<Metric, "references"> | null {
   const row = record(value);
   const name = text(row?.name);
   if (!row || !name) return null;
   return {
-    name,
+    name: dataset ? `${dataset}.${name}` : name,
+    dataset,
     description: text(row.description),
     expressions: expressionsOf(row.expression),
     aiContext: row.ai_context ?? null,
@@ -249,6 +253,21 @@ function pairs(expression: string): FieldRef[] {
   return refs;
 }
 
+/** A dataset-scoped metric names its own dataset's fields unqualified. */
+export function ownFieldReferences(expressions: string[], dataset: Dataset): FieldRef[] {
+  const names = new Set(dataset.fields.map((field) => field.name));
+  const found: FieldRef[] = [];
+  for (const expression of expressions) {
+    for (const match of maskStrings(expression).matchAll(/"((?:[^"]|"")*)"|[\p{L}_][\p{L}\p{N}_$]*/gu)) {
+      const token = match[1] === undefined ? match[0] : match[1].replaceAll('""', '"');
+      if (names.has(token) && !found.some((ref) => ref.field === token)) {
+        found.push({ dataset: dataset.name, field: token });
+      }
+    }
+  }
+  return found;
+}
+
 /** The schema stores no reference list. A reference is a dataset.field token that exists in the model. */
 export function fieldReferences(expressions: string[], datasets: Dataset[]): FieldRef[] {
   const fields = new Map<string, Set<string>>();
@@ -285,16 +304,32 @@ export function readModel(doc: unknown): SemanticModel {
       return metric ? [metric] : [];
     }) : [],
   );
+  const scoped = raws.flatMap((raw) =>
+    Array.isArray(raw.datasets) ? raw.datasets.flatMap((item) => {
+      const row = record(item);
+      const owner = text(row?.name);
+      if (!row || !owner || !Array.isArray(row.metrics)) return [];
+      return row.metrics.flatMap((entry) => {
+        const metric = readMetric(entry, owner);
+        return metric ? [metric] : [];
+      });
+    }) : [],
+  );
+  const byName = new Map(datasets.map((dataset) => [dataset.name, dataset]));
   return {
     name: parts.map((part) => part.name).filter((name): name is string => name !== null).join(", ") || null,
     description: parts.find((part) => part.description)?.description ?? null,
     aiContext: parts.find((part) => part.aiContext != null)?.aiContext ?? null,
     datasets,
     relationships: parts.flatMap((part) => part.relationships),
-    metrics: metrics.map((metric) => ({
-      ...metric,
-      references: fieldReferences(metric.expressions.map((item) => item.expression), datasets),
-    })),
+    metrics: [...metrics, ...scoped].map((metric) => {
+      const expressions = metric.expressions.map((item) => item.expression);
+      const owner = metric.dataset ? byName.get(metric.dataset) : undefined;
+      return {
+        ...metric,
+        references: owner ? ownFieldReferences(expressions, owner) : fieldReferences(expressions, datasets),
+      };
+    }),
     extensions: parts.flatMap((part) => part.extensions),
   };
 }

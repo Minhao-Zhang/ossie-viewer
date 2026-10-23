@@ -1,4 +1,4 @@
-/** One selected item. V3 can read and write this same value from the URL. */
+/** One selected item. The URL hash stores this value. */
 export type Selection =
   | { kind: "dataset"; name: string }
   | { kind: "metric"; name: string }

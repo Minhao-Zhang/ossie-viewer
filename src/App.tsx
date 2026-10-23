@@ -4,6 +4,7 @@ import { Detail } from "./Detail";
 import { openText, type OpenedDocument } from "./document";
 import { fetchText } from "./fetchText";
 import { GraphView } from "./GraphView";
+import { linkToCopy, readLocationHash, resolveHash, sameTarget, selectionHash, writeLocationHash } from "./hash";
 import { ModelIndex, ModelSummary } from "./Overview";
 import type { Selection } from "./selection";
 
@@ -12,15 +13,18 @@ export function App() {
   const [url, setUrl] = useState(
     () => new URLSearchParams(window.location.search).get("file") ?? "",
   );
+  const [fileUrl, setFileUrl] = useState<string | null>(
+    () => new URLSearchParams(window.location.search).get("file"),
+  );
   const [opened, setOpened] = useState<OpenedDocument | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [selection, setSelection] = useState<Selection | null>(null);
+  const [locationHash, setLocationHash] = useState(readLocationHash);
   const request = useRef(0);
 
   const show = useCallback((text: string, label: string) => {
     request.current += 1;
     setSource(label);
-    setSelection(null);
+    setFileUrl(null);
     setLoadError(null);
     setOpened(openText(text));
   }, []);
@@ -32,7 +36,7 @@ export function App() {
       } catch {
         request.current += 1;
         setSource(file.name);
-        setSelection(null);
+        setFileUrl(null);
         setOpened(null);
         setLoadError(`Could not read ${file.name}.`);
       }
@@ -43,9 +47,12 @@ export function App() {
   const loadUrl = useCallback(async (next: string) => {
     const id = ++request.current;
     setSource(next);
-    setSelection(null);
+    setFileUrl(next);
     setLoadError(null);
     setOpened(null);
+    const page = new URL(window.location.href);
+    page.searchParams.set("file", next);
+    window.history.replaceState(null, "", `${page.pathname}${page.search}${page.hash}`);
     const result = await fetchText(next);
     if (id !== request.current) return;
     if ("error" in result) {
@@ -64,7 +71,7 @@ export function App() {
     void fetchText(fromPage).then((result) => {
       if (cancelled || id !== request.current) return;
       setSource(fromPage);
-      setSelection(null);
+      setFileUrl(fromPage);
       if ("error" in result) {
         setOpened(null);
         setLoadError(result.error);
@@ -76,6 +83,20 @@ export function App() {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  useEffect(() => {
+    function onHashChange() {
+      setLocationHash(readLocationHash());
+    }
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
+
+  const choose = useCallback((next: Selection | null) => {
+    const hash = next ? selectionHash(next) : "";
+    if (!sameTarget(readLocationHash(), next)) writeLocationHash(hash);
+    setLocationHash(readLocationHash());
   }, []);
 
   useEffect(() => {
@@ -99,7 +120,8 @@ export function App() {
   }, [openFile]);
 
   const ready = opened !== null && opened.parseError === null ? opened : null;
-  const showOverview = ready !== null && selection === null;
+  const located = ready ? resolveHash(ready.model, locationHash) : { selection: null, notFound: null };
+  const showOverview = ready !== null && located.selection === null;
 
   return (
     <main>
@@ -158,21 +180,32 @@ export function App() {
             ))}
           </ul>
         ) : null}
-        {showOverview && ready ? <ModelSummary model={ready.model} /> : null}
-        {ready && selection ? (
-          <Detail model={ready.model} selection={selection} onSelect={setSelection} onBack={() => setSelection(null)} />
+        {showOverview && ready ? (
+          <>
+            {located.notFound ? <p>{`"${located.notFound}" is not found in this file.`}</p> : null}
+            <ModelSummary model={ready.model} />
+          </>
+        ) : null}
+        {ready && located.selection ? (
+          <Detail
+            model={ready.model}
+            selection={located.selection}
+            copy={linkToCopy(located.selection, fileUrl)}
+            onSelect={choose}
+            onBack={() => choose(null)}
+          />
         ) : null}
       </div>
       {showOverview && ready && ready.graph.nodes.length > 0 ? (
         <GraphView
           graph={ready.graph}
           selected={null}
-          onSelect={(name) => setSelection({ kind: "dataset", name })}
+          onSelect={(name) => choose({ kind: "dataset", name })}
         />
       ) : null}
       {showOverview && ready ? (
         <div className="page">
-          <ModelIndex model={ready.model} onSelect={setSelection} />
+          <ModelIndex model={ready.model} onSelect={choose} />
         </div>
       ) : null}
     </main>

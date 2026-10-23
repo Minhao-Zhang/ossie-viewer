@@ -83,3 +83,43 @@ describe("fieldReferences", () => {
     ]);
   });
 });
+
+describe("dataset-scoped metrics", () => {
+  const doc = {
+    version: "0.2.0.dev0",
+    name: "shop",
+    datasets: [
+      {
+        name: "orders",
+        source: "db.orders",
+        fields: [
+          { name: "amount", expression: { dialects: [{ dialect: "ANSI_SQL", expression: "amount" }] } },
+          { name: "status", expression: { dialects: [{ dialect: "ANSI_SQL", expression: "status" }] } },
+        ],
+        metrics: [
+          {
+            name: "revenue",
+            expression: { dialects: [{ dialect: "ANSI_SQL", expression: "SUM(amount) FILTER (WHERE status = 'paid')" }] },
+          },
+        ],
+      },
+    ],
+    metrics: [{ name: "revenue", expression: { dialects: [{ dialect: "ANSI_SQL", expression: "SUM(orders.amount)" }] } }],
+  };
+
+  it("keeps a dataset metric apart from a model metric of the same name", () => {
+    const model = readModel(doc);
+    expect(model.metrics.map((metric) => [metric.name, metric.dataset])).toEqual([
+      ["revenue", null],
+      ["orders.revenue", "orders"],
+    ]);
+  });
+
+  it("resolves a dataset metric's bare field names in its own dataset", () => {
+    const scoped = readModel(doc).metrics.find((metric) => metric.dataset === "orders");
+    expect(scoped?.references).toEqual([
+      { dataset: "orders", field: "amount" },
+      { dataset: "orders", field: "status" },
+    ]);
+  });
+});

@@ -3,12 +3,13 @@ import { useEffect } from "react";
 import { AiContextView, hasAiContext } from "./AiContextView";
 import { ExtensionsView } from "./ExtensionsView";
 import { LinkButton } from "./LinkButton";
-import type { Dataset, DialectExpression, Relationship } from "./model";
+import type { Dataset, DialectExpression, Metric, Relationship } from "./model";
 import type { Selection } from "./selection";
 
 type Props = {
   dataset: Dataset;
   relationships: Relationship[];
+  metrics: Metric[];
   highlight: string | null;
   onSelect: (selection: Selection) => void;
 };
@@ -28,7 +29,8 @@ function ExpressionText({ expressions }: { expressions: DialectExpression[] }) {
   );
 }
 
-export function DatasetView({ dataset, relationships, highlight, onSelect }: Props) {
+export function DatasetView({ dataset, relationships, metrics, highlight, onSelect }: Props) {
+  const own = metrics.filter((metric) => metric.dataset === dataset.name);
   const involved = relationships.filter((item) => item.from === dataset.name || item.to === dataset.name);
   const fieldKnown = highlight !== null && dataset.fields.some((field) => field.name === highlight);
   const showType = dataset.fields.some((field) => field.datatype);
@@ -119,6 +121,21 @@ export function DatasetView({ dataset, relationships, highlight, onSelect }: Pro
             ))}
           </tbody>
         </table>
+      ) : null}
+      {own.length > 0 ? (
+        <>
+          <h3>Metrics</h3>
+          <ul>
+            {own.map((metric) => (
+              <li key={metric.name}>
+                <LinkButton onClick={() => onSelect({ kind: "metric", name: metric.name })}>
+                  {metric.name.slice(dataset.name.length + 1)}
+                </LinkButton>
+                {metric.description ? <span className="muted"> {metric.description}</span> : null}
+              </li>
+            ))}
+          </ul>
+        </>
       ) : null}
       {involved.length > 0 ? (
         <>
