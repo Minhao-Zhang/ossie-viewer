@@ -21,3 +21,87 @@ body {
 .muted {
   color: var(--muted);
 }
+
+.open {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 32px;
+  align-items: end;
+  margin: 24px 0;
+}
+
+.open label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.open input[type="text"] {
+  border: none;
+  border-bottom: 1px solid var(--line);
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  padding: 4px 0;
+  width: 28rem;
+  max-width: 100%;
+}
+
+button {
+  font: inherit;
+  color: var(--text);
+  background: #fff;
+  border: 1px solid var(--line);
+  padding: 4px 10px;
+}
+
+code {
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 0.92em;
+}
+
+ul {
+  padding-left: 1.2rem;
+}
+
+li {
+  margin: 4px 0;
+}
+
+.graph {
+  height: 70vh;
+  min-height: 420px;
+  border-top: 1px solid var(--line);
+}
+
+.react-flow {
+  --xy-edge-stroke: #0d0d0d;
+  --xy-edge-stroke-width: 1;
+  --xy-node-border: 1px solid var(--line);
+  --xy-node-background-color: #fff;
+  --xy-node-color: var(--text);
+  --xy-node-border-radius: 0;
+  --xy-node-boxshadow-hover: none;
+  --xy-node-boxshadow-selected: none;
+  background: #fff;
+}
+
+.react-flow__node-default {
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.react-flow__node-default.is-selected {
+  border-color: var(--text);
+}
+
+.react-flow__handle {
+  opacity: 0;
+}
+
+.react-flow__attribution {
+  background: transparent;
+  color: var(--muted);
+}
