@@ -1,5 +1,4 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import os from "node:os";
 import path from "node:path";
 
 import { cleanup, render, screen } from "@testing-library/react";
@@ -16,17 +15,18 @@ const exampleDirs = [
 ];
 const examplesDir = exampleDirs.find((dir) => existsSync(dir)) ?? null;
 
-const birdDirs = [
-  "C:\\Users\\zhang\\Code\\governed-bi\\runs\\p15\\bird",
-  path.resolve(process.cwd(), "../governed-bi/runs/p15/bird"),
-  path.join(os.tmpdir(), "ossie-viewer-bird"),
+const birdRoots = [
+  "C:\\Users\\zhang\\Code\\BIRD-corpus",
+  path.resolve(process.cwd(), "../BIRD-corpus"),
 ];
-const birdDir = birdDirs.find((dir) => existsSync(dir)) ?? null;
-const birdFile = birdDir
-  ? readdirSync(birdDir)
-      .filter((name) => name !== "export-report.json" && (name.endsWith(".yaml") || name.endsWith(".yml") || name.endsWith(".json")))
-      .sort()[0]
-  : undefined;
+const birdRoot = birdRoots.find((dir) => existsSync(dir)) ?? null;
+// BIRD-corpus is stored as Ossie: one model per database, at <database>/<database>.yaml.
+const birdFiles = birdRoot
+  ? readdirSync(birdRoot)
+      .filter((name) => existsSync(path.join(birdRoot, name, `${name}.yaml`)))
+      .sort()
+      .map((name) => path.join(birdRoot, name, `${name}.yaml`))
+  : [];
 
 afterEach(cleanup);
 
@@ -76,15 +76,30 @@ describe("real models", () => {
     },
   );
 
-  it.skipIf(!birdFile)(
-    birdFile
-      ? `renders every dataset and metric in ${birdFile}`
-      : "renders an exported BIRD model — skipped because runs/p15/bird and the temp export are absent",
+  it.skipIf(birdFiles.length === 0)(
+    birdFiles.length
+      ? `opens all ${birdFiles.length} BIRD models with no issue and renders every dataset and metric`
+      : "opens the BIRD models — skipped because ../BIRD-corpus is absent",
     () => {
-      const opened = openText(readFileSync(path.join(birdDir!, birdFile!), "utf8"));
-      expect(opened.parseError).toBeNull();
-      expect(nonJson(opened.model)).toEqual([]);
-      renders(opened.model);
+      expect(birdFiles.length).toBe(57);
+      for (const file of birdFiles) {
+        const opened = openText(readFileSync(file, "utf8"));
+        expect(opened.parseError, file).toBeNull();
+        expect(opened.version, file).toBe("0.2.0.dev0");
+        expect(opened.issues, file).toEqual([]);
+        expect(nonJson(opened.model), file).toEqual([]);
+        renders(opened.model);
+      }
     },
+    600_000,
   );
+
+  it.skipIf(birdFiles.length === 0)("opens and lays out the largest BIRD model quickly enough to use", () => {
+    const largest = [...birdFiles].sort((a, b) => readFileSync(b).length - readFileSync(a).length)[0]!;
+    const started = performance.now();
+    const opened = openText(readFileSync(largest, "utf8"));
+    const elapsed = performance.now() - started;
+    expect(opened.graph.nodes.length).toBeGreaterThan(0);
+    expect(elapsed, `${path.basename(largest)} took ${Math.round(elapsed)} ms`).toBeLessThan(3000);
+  });
 });
